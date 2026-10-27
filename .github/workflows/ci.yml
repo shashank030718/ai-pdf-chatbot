@@ -1,5 +1,5 @@
 
-name: AI PDF Chatbot CI
+name: AI PDF Chatbot CI/CD
 
 on:
   push:
@@ -8,6 +8,9 @@ on:
   pull_request:
     branches:
       - master
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -21,18 +24,34 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend image
+      - name: Configure AWS credentials
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-south-1
+
+      - name: Login to Amazon ECR
+        if: github.event_name == 'push'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: false
-          tags: ai-pdf-backend:ci
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ github.event_name == 'push' && format('{0}/ai-pdf-backend:{1}', steps.login-ecr.outputs.registry, github.sha) || 'ai-pdf-backend:ci' }}
+            ${{ github.event_name == 'push' && format('{0}/ai-pdf-backend:latest', steps.login-ecr.outputs.registry) || 'ai-pdf-backend:ci' }}
 
-      - name: Build frontend image
+      - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
-          push: false
-          tags: ai-pdf-frontend:ci
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ github.event_name == 'push' && format('{0}/ai-pdf-frontend:{1}', steps.login-ecr.outputs.registry, github.sha) || 'ai-pdf-frontend:ci' }}
+            ${{ github.event_name == 'push' && format('{0}/ai-pdf-frontend:latest', steps.login-ecr.outputs.registry) || 'ai-pdf-frontend:ci' }}
