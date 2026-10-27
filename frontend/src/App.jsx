@@ -3,7 +3,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "/api";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 function App() {
